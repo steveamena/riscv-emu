@@ -9,11 +9,11 @@ void CPU::reset() {
 }
 
 void CPU::step(){
+    const uint32_t current_pc = program_counter_;
     uint32_t instruction = CPU::fetch();
     CPU::Instruction decoded_instruction = CPU::decode(instruction);
     CPU::printInstruction(decoded_instruction);
-    CPU::execute(decoded_instruction);
-    program_counter_ += 4;
+    program_counter_ = CPU::execute(decoded_instruction, current_pc);
 }
 
 uint32_t CPU::fetch(){
@@ -23,7 +23,7 @@ uint32_t CPU::fetch(){
 
 CPU::Instruction CPU::decode(uint32_t instruction) {
     Instruction inst{};
-    inst.opcode = instruction & 0x7F;
+    inst.opcode = static_cast<Opcode>(instruction & 0x7F);
     inst.rd = (instruction >> 7) & 0x1F;
     inst.funct3 = (instruction >> 12) & 0x7;
     inst.rs1 = (instruction >> 15) & 0x1F;
@@ -80,7 +80,7 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
 
 void CPU::printInstruction(Instruction instruction) {
     printf("Opcode: 0x%02X, rd: %u, funct3: 0x%X, rs1: %u, rs2: %u, funct7: 0x%02X\n",
-           instruction.opcode,
+           static_cast<unsigned>(instruction.opcode),
            instruction.rd,
            instruction.funct3,
            instruction.rs1,
@@ -99,7 +99,9 @@ void CPU::writeRegister(uint32_t index, uint32_t value){
     registers[index] = value;
 }
 
-void CPU::execute(const Instruction& instruction){
+uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc){
+    const uint32_t sequential_pc = current_pc + 4;
+
     switch (instruction.opcode)
     {
     case Opcode::ALU_Reg:
@@ -143,6 +145,7 @@ void CPU::execute(const Instruction& instruction){
             default:
                 break;
             }
+        break;
     case Opcode::ALU_Imm:{
         switch (instruction.funct3){
             case 0x0:{
@@ -152,48 +155,23 @@ void CPU::execute(const Instruction& instruction){
                 printf("Result: %d\n", result);
                 break;
                 }
-            case 0x2:{
-                printf("LOAD WORD instruction\n");
-                uint32_t base = readRegister(instruction.rs1);
-                uint32_t address = base + instruction.imm;
-
-                // Read information from ram and store it in the destination register
-                uint32_t word = 0;
-                writeRegister(instruction.rd, memory.read32(address));
-                break;
-            }
         }
+        break;
     }
     case Opcode::JAL:{
-        writeRegister(instruction.rd, program_counter_ + 4);
-        program_counter_ += instruction.imm; 
-        break;
+        printf("JAL instruction\n");
+        if(instruction.rd !=0){
+            writeRegister(instruction.rd, sequential_pc); // In RiscV, JAL allows rd equal to 0 but it is skipped. 
+        }
+        return current_pc + static_cast<uint32_t>(instruction.imm);
     }
     case Opcode::JALR:{
-        writeRegister(instruction.rd, program_counter_ + 4);
-        program_counter_ = instruction.rs1 + instruction.imm;
-        break;
-    }
-    case Opcode::Branch:{
-        uint32_t val1 = readRegister(instruction.rs1);
-        uint32_t val2 = readRegister(instruction.rs2);
-        switch(instruction.funct3) {
-            case 0x0:{
-                if (val1 == val2) {
-                    printf("BRANCH EQUAL instruction\n");
-                    program_counter_ = instruction.imm;
-                    return;
-                }
-            }
-            case 0x1:{
-                if (val1 != val2) {
-                    printf("BRANCH NOT EQUAL instruction\n");
-                    program_counter_ = instruction.imm;
-                    return;
-                }
-            }
+        if(instruction.rd != 0){
+            writeRegister(instruction.rd, sequential_pc); // In RiscV, JALR allows rd equal to 0 but it is skipped.
         }
+        return  readRegister(instruction.rs1) + static_cast<uint32_t>(instruction.imm);
     }
+  
     case Opcode::Store:{
         printf("STORE WORD instruction\n");
         uint32_t base = readRegister(instruction.rs1);
@@ -202,11 +180,28 @@ void CPU::execute(const Instruction& instruction){
         memory.write32(address, word);
         break;
     }
+    case Opcode::Load:{
+        switch (instruction.funct3)
+        {
+        case 0x0:
+            printf("LOAD Byte instruction\n");
+            writeRegister(instruction.rd, memory.read8(instruction.rs1 + instruction.imm));
+            break;
+        case 0x1:
+            printf("LOAD half instruction\n");
+            uint32_t result = (memory.read8(instruction.rs1 + instruction.imm) << 8
+                            | (memory.read8(instruction.rs1 + instruction.imm + 1)));
+            writeRegister(instruction.rd, result);
+            break;            
+        default:
+            break;
+        }
+    }
     default:
         break;
     }
 
-
+    return sequential_pc;
 }
 
 void CPU::print32int(uint32_t value){

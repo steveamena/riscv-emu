@@ -3,23 +3,23 @@
 
 #include "memory.h"
 
-namespace Opcode {
-    constexpr uint8_t ALU_Reg   = 0x33;
-    constexpr uint8_t ALU_Imm   = 0x13;
-    constexpr uint8_t Load      = 0x03;
-    constexpr uint8_t Store     = 0x23;
-    constexpr uint8_t Branch    = 0x63;
-    constexpr uint8_t JAL       = 0x6F;
-    constexpr uint8_t JALR      = 0x67;
-    constexpr uint8_t LUI       = 0x37;
-    constexpr uint8_t AUIPC     = 0x17;
-    constexpr uint8_t System    = 0x73;
-}
+enum class Opcode : uint8_t {
+    ALU_Reg = 0x33,
+    ALU_Imm = 0x13,
+    Load = 0x03,
+    Store = 0x23,
+    Branch = 0x63,
+    JAL = 0x6F,
+    JALR = 0x67,
+    LUI = 0x37,
+    AUIPC = 0x17,
+    System = 0x73
+};
 
 class CPU {
     public:
         struct Instruction {
-            uint32_t opcode;
+            Opcode opcode;
             uint32_t rd;
             uint32_t funct3;
             uint32_t rs1;
@@ -47,7 +47,7 @@ class CPU {
         // fetch -> decode -> execute methods
         uint32_t fetch();
         Instruction decode(uint32_t instruction);
-        void execute(const Instruction& instruction);
+        uint32_t execute(const Instruction& instruction, const uint32_t current_pc);
 
         uint32_t registers[32];
         uint32_t program_counter_;
