@@ -171,13 +171,29 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         }
         return  readRegister(instruction.rs1) + static_cast<uint32_t>(instruction.imm);
     }
-  
     case Opcode::Store:{
-        printf("STORE WORD instruction\n");
         uint32_t base = readRegister(instruction.rs1);
         uint32_t address = base + instruction.imm;
         uint32_t word = instruction.rs2;
-        memory.write32(address, word);
+        switch(instruction.funct3)
+        {
+            case 0x0:
+                printf("STORE Byte instruction\n");
+                memory.write8(address, word);
+                break;
+            case 0x1:
+                printf("STORE Half instruction\n");
+                memory.write8(address, word);
+                memory.write8(address + 1, word);
+                break;                  
+            case 0x2:
+                printf("STORE WORD instruction\n");
+                memory.write32(address, word);
+                break;
+            break;
+            default:
+            break;
+        }
         break;
     }
     case Opcode::Load:{
@@ -188,11 +204,18 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             writeRegister(instruction.rd, memory.read8(instruction.rs1 + instruction.imm));
             break;
         case 0x1:
+        {
             printf("LOAD half instruction\n");
             uint32_t result = (memory.read8(instruction.rs1 + instruction.imm) << 8
                             | (memory.read8(instruction.rs1 + instruction.imm + 1)));
             writeRegister(instruction.rd, result);
             break;            
+        }
+        case 0x2:
+            printf("LOAD Word instruction\n");
+            writeRegister(instruction.rd, memory.read32(instruction.rs1 + instruction.imm));
+            break;
+        
         default:
             break;
         }
