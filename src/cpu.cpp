@@ -34,6 +34,7 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
             break;
         }
         case Opcode::JALR:
+        case Opcode::Load:
         case Opcode::ALU_Imm:
             inst.imm = static_cast<int32_t>(instruction) >> 20;
             break;
@@ -52,24 +53,24 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
             break;
         }
         case Opcode::Branch:{
-            int32_t bit12   = (instruction >> 31) & 0x1;      // Sign
-            int32_t bit10_5 = (instruction >> 25) & 0x3F;     // Bits [10:5]
-            int32_t bit4_1  = (instruction >> 8) & 0xF;       // Bits [4:1]
-            int32_t bit11   = (instruction >> 7) & 0x1;       // Bit [11]
-            inst.imm = (bit12 << 12) | (bit11 << 11) | (bit10_5 << 5) | (bit4_1 << 1);
-            if (inst.imm & 0x1000) {
-                inst.imm |= static_cast<int32_t>(0xFFFFE000);
-            }
+            inst.rs2 = (instruction >> 20) & 0x1F;
+            const uint32_t immediate = (((instruction >> 31) & 0x1) << 12) |
+                                       (((instruction >> 7) & 0x1) << 11) |
+                                       (((instruction >> 25) & 0x3F) << 5) |
+                                       (((instruction >> 8) & 0xF) << 1);
+            inst.imm = (immediate & 0x1000)
+                ? static_cast<int32_t>(immediate) - 0x2000
+                : static_cast<int32_t>(immediate);
             break;
         }
         case Opcode::Store:{
             int32_t imm_hi = (instruction >> 25) & 0x7F; // Bits [11:5]
             int32_t imm_lo = (instruction >> 7) & 0x1F;  // Bits [4:0]
             inst.imm = (imm_hi << 5) | imm_lo;
-
             if (inst.imm & 0x800) {
                 inst.imm |= static_cast<int32_t>(0xFFFFF000);
             }
+            inst.rs2 = (instruction >> 20) & 0x1F;
             break;
         }
         default: 
@@ -94,7 +95,7 @@ uint32_t CPU::readRegister(uint32_t index) const {
 
 void CPU::writeRegister(uint32_t index, uint32_t value){
     if(index == 0 ){
-        throw std::domain_error("x0 must be 0");
+        return;
     }
     registers[index] = value;
 }
@@ -174,7 +175,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
     case Opcode::Store:{
         uint32_t base = readRegister(instruction.rs1);
         uint32_t address = base + instruction.imm;
-        uint32_t word = instruction.rs2;
+        uint32_t word = readRegister(instruction.rs2);
         switch(instruction.funct3)
         {
             case 0x0:
@@ -196,26 +197,90 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         }
         break;
     }
+    case Opcode::Branch: {
+        bool branch_condition_met;
+
+        switch (instruction.funct3) {
+        case 0x0: // BEQ
+            branch_condition_met = readRegister(instruction.rs1) ==
+                                   readRegister(instruction.rs2);
+            break;
+        case 0x1: // BNE
+            branch_condition_met = readRegister(instruction.rs1) !=
+                                   readRegister(instruction.rs2);
+            break;
+        case 0x4: // BLT
+            branch_condition_met = readRegister(instruction.rs1) <
+                                   readRegister(instruction.rs2);
+            break;
+        case 0x5: // BGE
+            branch_condition_met = readRegister(instruction.rs1) >=
+                                   readRegister(instruction.rs2);
+            break;
+        case 0x6: // BLTU (unsigned)
+            branch_condition_met = readRegister(instruction.rs1) <
+                                  readRegister(instruction.rs2);
+            break;
+        case 0x7: // BGEU (unsigned)
+            branch_condition_met = readRegister(instruction.rs1) >=
+                                  readRegister(instruction.rs2);
+            break;
+        default:
+            throw std::runtime_error("Unsupported branch funct3");
+        }
+
+        return branch_condition_met
+            ? current_pc + static_cast<uint32_t>(instruction.imm)
+            : sequential_pc;
+    }
+
     case Opcode::Load:{
         switch (instruction.funct3)
         {
         case 0x0:
+        {
             printf("LOAD Byte instruction\n");
-            writeRegister(instruction.rd, memory.read8(instruction.rs1 + instruction.imm));
+            uint32_t byte =
+                memory.read8(readRegister(instruction.rs1) + instruction.imm);
+            // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
+            if ((byte & 0x80) != 0) {
+                byte |= 0xFFFFFF00;
+            }
+            writeRegister(instruction.rd, byte);
             break;
+        }
         case 0x1:
         {
             printf("LOAD half instruction\n");
-            uint32_t result = (memory.read8(instruction.rs1 + instruction.imm) << 8
-                            | (memory.read8(instruction.rs1 + instruction.imm + 1)));
-            writeRegister(instruction.rd, result);
+            uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
+                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));
+            // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
+            if ((half & 0x8000) != 0) {
+                half |= 0xFFFF0000;
+            }                            
+            writeRegister(instruction.rd, half);
             break;            
         }
         case 0x2:
             printf("LOAD Word instruction\n");
-            writeRegister(instruction.rd, memory.read32(instruction.rs1 + instruction.imm));
+            writeRegister(instruction.rd, memory.read32(readRegister(instruction.rs1) + instruction.imm));
             break;
-        
+        case 0x4:
+        {
+            printf("LOAD U Byte instruction\n");
+            const uint32_t byte =
+                memory.read8(readRegister(instruction.rs1) + instruction.imm);
+            writeRegister(instruction.rd, byte);
+            break;
+        }
+        case 0x5:
+        {
+            printf("LOAD half instruction\n");
+            const uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
+                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));                          
+            writeRegister(instruction.rd, half);
+            break;
+        }
         default:
             break;
         }
