@@ -36,7 +36,7 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
         case Opcode::JALR:
         case Opcode::Load:
         case Opcode::ALU_Imm:
-            inst.imm = static_cast<int32_t>(instruction) >> 20;
+            inst.imm = sign_extend((instruction >> 20) & 0xFFF, 12);
             break;
         case Opcode::JAL:{
             // 1. Extract the segments from each register section
@@ -47,9 +47,7 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
 
             // 2. Join together all registers in the right position. 
             inst.imm = (bit20 << 20) | (bit19_12 << 12) | (bit11 << 11) | (bit10_1 << 1);
-            if (inst.imm & 0x100000) { 
-                inst.imm |= static_cast<int32_t>(0xFFE00000);
-            }
+            inst.imm = sign_extend(inst.imm, 21);
             break;
         }
         case Opcode::Branch:{
@@ -58,18 +56,14 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
                                        (((instruction >> 7) & 0x1) << 11) |
                                        (((instruction >> 25) & 0x3F) << 5) |
                                        (((instruction >> 8) & 0xF) << 1);
-            inst.imm = (immediate & 0x1000)
-                ? static_cast<int32_t>(immediate) - 0x2000
-                : static_cast<int32_t>(immediate);
+            inst.imm = sign_extend(static_cast<int32_t>(immediate), 13);
             break;
         }
         case Opcode::Store:{
             int32_t imm_hi = (instruction >> 25) & 0x7F; // Bits [11:5]
             int32_t imm_lo = (instruction >> 7) & 0x1F;  // Bits [4:0]
             inst.imm = (imm_hi << 5) | imm_lo;
-            if (inst.imm & 0x800) {
-                inst.imm |= static_cast<int32_t>(0xFFFFF000);
-            }
+            inst.imm = sign_extend(inst.imm, 12);
             inst.rs2 = (instruction >> 20) & 0x1F;
             break;
         }
@@ -77,6 +71,13 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
             break;
     }
     return inst;
+}
+
+int32_t CPU::sign_extend(int32_t value, int32_t size){
+    if ( value & (1 << (size - 1))){
+        return value |= ((0xFFFFFFFF << size));
+    }
+    return value;
 }
 
 void CPU::printInstruction(Instruction instruction) {

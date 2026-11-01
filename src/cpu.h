@@ -43,6 +43,7 @@ class CPU {
         void setPC(uint32_t new_pc) { program_counter_ = new_pc; }
         void printInstruction(Instruction instruction);
         void print32int(uint32_t value);
+        int32_t sign_extend(int32_t value, int32_t size);
     private:
         // fetch -> decode -> execute methods
         uint32_t fetch();
