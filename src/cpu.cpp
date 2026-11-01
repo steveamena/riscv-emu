@@ -123,6 +123,28 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 }
                 break;
             }
+            case 0x1:{
+                printf("SLL Instruction");
+                writeRegister(instruction.rd, 
+                    readRegister(instruction.rs1) << readRegister(instruction.rs2)
+                );
+                break;
+            }
+            case 0x2:{
+                printf("SLT instruction");
+                writeRegister(instruction.rd,
+                    static_cast<int32_t>(readRegister(instruction.rs1)) < 
+                    static_cast<int32_t>(readRegister(instruction.rs2)) ? 1 : 0
+                );
+                break;
+            }
+            case 0x3:{
+                printf("SLTU instruction");
+                writeRegister(instruction.rd,
+                    readRegister(instruction.rs1) < readRegister(instruction.rs2) ? 1 : 0
+                );
+                break;
+            }
             case 0x4:{
                 printf("XOR instruction\n");
                 uint32_t result = readRegister(instruction.rs1) ^ readRegister(instruction.rs2);
@@ -144,6 +166,20 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 printf("Result: %08X\n", result);
                 break;
             }
+            case 0x5:{
+                if(instruction.funct3 == 0x0){
+                    printf("SRL instruction");
+                    writeRegister(instruction.rd, 
+                        readRegister(instruction.rs1) >> readRegister(instruction.rs2));
+                }
+                if(instruction.funct3 == 0x20){
+                    printf("SRA instruction");
+                    writeRegister(instruction.rd,
+                        static_cast<int32_t>(instruction.rs1) >> static_cast<int32_t>(instruction.rs2)
+                    );
+                }
+            break;
+            }
             default:
                 break;
             }
@@ -157,6 +193,47 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 printf("Result: %d\n", result);
                 break;
                 }
+            case 0x1:{
+                writeRegister(instruction.rd, 
+                    readRegister(instruction.rs1) << (readRegister(instruction.imm) & 0xF)
+                );
+                break;
+            }
+            case 0x2:{
+                printf("SLTI instruction");
+                writeRegister(instruction.rd, 
+                    readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
+                );
+                break;
+            }
+            case 0x3:{
+                printf("SLTIU instruction");
+                writeRegister(instruction.rd, 
+                    readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
+                );
+                break;
+            }
+            case 0x4:{
+                printf("XORI instruction");
+                writeRegister(instruction.rd, readRegister(instruction.rs1) ^ readRegister(instruction.imm));
+                break;
+            }
+            case 0x5:{
+                printf("SRAI instruction");
+                writeRegister(instruction.rd, 
+                    readRegister(instruction.rs1) >> (readRegister(instruction.imm) & 0xF)
+                );
+            }
+            case 0x6:{
+                printf("ORI instruction");
+                writeRegister(instruction.rd, readRegister(instruction.rs1) | readRegister(instruction.imm));
+                break;
+            }
+            case 0x7:{
+                printf("ANDI instruction");
+                writeRegister(instruction.rd, readRegister(instruction.rs1) & readRegister(instruction.imm));
+                break;     
+            } 
         }
         break;
     }
@@ -289,7 +366,6 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
     default:
         break;
     }
-
     return sequential_pc;
 }
 
