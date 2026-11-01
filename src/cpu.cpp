@@ -376,10 +376,10 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             break;
         }
     }
-        case Opcode::LUI:{
-        printf("LUI instruction\n");
-        writeRegister(instruction.rd, readRegister(instruction.imm << 12));
-        break;
+    case Opcode::LUI:{
+    printf("LUI instruction\n");
+    writeRegister(instruction.rd, readRegister(instruction.imm << 12));
+    break;
     }
     case Opcode::AUIPC:{
         printf("AUIPC instruction\n");
@@ -388,7 +388,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
     }
     default:
         printf("Not recognized instruction");
-        sequential_pc = current_pc;
+        return current_pc;
         break;
     }
     return sequential_pc;

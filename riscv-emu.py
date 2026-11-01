@@ -14,7 +14,7 @@ def arguments_manager(logger: Logger):
 
     parser.add_argument(
         "command",
-        choices=["debug", "release", "rebuild", "run", "clean"],
+        choices=["debug", "release", "rebuild", "run", "run-test", "clean"],
         help="Command to execute",
     )
 
@@ -30,12 +30,15 @@ def main():
     binary_dir = root_dir / "bin"
 
     executable_name = "riscv-emu"
+    test_name = "test_riscv_emu"
 
     # Windows executable extension
     if sys.platform.startswith("win"):
         executable_name += ".exe"
+        test_name += ".exe"
 
     executable_path = binary_dir / executable_name
+    test_path  = binary_dir / test_name
     logger = configure_logger("buildtools")
     args = arguments_manager(logger)
     commands = {
@@ -49,6 +52,7 @@ def main():
         ),
         "rebuild": lambda: rebuild(logger, build_dir, "Debug"),
         "run": lambda: run(logger, executable_path),
+        "run-test": lambda: run(logger, test_path),
         "clean": lambda: clean(logger, build_dir),
     }
     try:

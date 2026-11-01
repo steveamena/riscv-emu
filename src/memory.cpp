@@ -1,20 +1,24 @@
 
 #include "memory.h"
 
-Memory::Memory(size_t size) : data(size) {};
+Memory::Memory(size_t size) : data_(size) {};
+
+std::vector<uint8_t> Memory::data(){
+    return data_;
+}
 
 void Memory::write8(uint32_t address, uint8_t value) {
-    if(address >= data.size()) {
+    if(address >= data_.size()) {
         throw std::out_of_range("Address out of range");
     }
-    data[address] = value;
+    data_[address] = value;
 }
 
 uint8_t Memory::read8(uint32_t address) const {
-    if(address >= data.size()) {
+    if(address >= data_.size()) {
         throw std::out_of_range("Address out of range");
     }
-    return data[address];
+    return data_[address];
 }
 
 int Memory::read8Int(uint32_t address) const {
@@ -22,23 +26,23 @@ int Memory::read8Int(uint32_t address) const {
 }
 
 void Memory::write32(uint32_t address, uint32_t value) {
-    if(address + 3 >= data.size()) {
+    if(address + 3 >= data_.size()) {
         throw std::out_of_range("Address out of range");
     }
-    data[address] = value & 0xFF;
-    data[address + 1] = (value >> 8) & 0xFF;
-    data[address + 2] = (value >> 16) & 0xFF;
-    data[address + 3] = (value >> 24) & 0xFF;
+    data_[address] = value & 0xFF;
+    data_[address + 1] = (value >> 8) & 0xFF;
+    data_[address + 2] = (value >> 16) & 0xFF;
+    data_[address + 3] = (value >> 24) & 0xFF;
 }
 
 uint32_t Memory::read32(uint32_t address) const {
-    if(address + 3 >= data.size()) {
+    if(address + 3 >= data_.size()) {
         throw std::out_of_range("Address out of range");
     }
-    return static_cast<uint32_t>(data[address]) |
-           (static_cast<uint32_t>(data[address + 1]) << 8) |
-           (static_cast<uint32_t>(data[address + 2]) << 16) |
-           (static_cast<uint32_t>(data[address + 3]) << 24);
+    return static_cast<uint32_t>(data_[address]) |
+           (static_cast<uint32_t>(data_[address + 1]) << 8) |
+           (static_cast<uint32_t>(data_[address + 2]) << 16) |
+           (static_cast<uint32_t>(data_[address + 3]) << 24);
 }
 
 int Memory::read32Int(uint32_t address) const {
@@ -46,14 +50,14 @@ int Memory::read32Int(uint32_t address) const {
 }
 
 void Memory::print32Hex(uint32_t address) const {
-    if(address + 3 >= data.size()) {
+    if(address + 3 >= data_.size()) {
         throw std::out_of_range("Address out of range");
     }
 
     printf("% % % %\n", 
-           static_cast<unsigned char>(data[address]),
-           static_cast<unsigned char>(data[address + 1]),
-           static_cast<unsigned char>(data[address + 2]),
-           static_cast<unsigned char>(data[address + 3]));
+           static_cast<unsigned char>(data_[address]),
+           static_cast<unsigned char>(data_[address + 1]),
+           static_cast<unsigned char>(data_[address + 2]),
+           static_cast<unsigned char>(data_[address + 3]));
 }
 
