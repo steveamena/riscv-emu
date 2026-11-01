@@ -31,11 +31,11 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(
-  test_riscv_emu
-  tests/test_cpu.cc
-  tests/test_memory.cc
-  src/cpu.cpp
-  src/memory.cpp
+                test_riscv_emu
+                tests/test_cpu.cc
+                tests/test_memory.cc
+                src/cpu.cpp
+                src/memory.cpp
 )
 target_link_libraries(
   test_riscv_emu
