@@ -67,6 +67,9 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
             inst.rs2 = (instruction >> 20) & 0x1F;
             break;
         }
+        case Opcode::LUI:
+        case Opcode::AUIPC:
+            inst.imm = instruction >> 11;
         default: 
             break;
     }
@@ -124,14 +127,14 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 break;
             }
             case 0x1:{
-                printf("SLL Instruction");
+                printf("SLL instruction\n");
                 writeRegister(instruction.rd, 
                     readRegister(instruction.rs1) << readRegister(instruction.rs2)
                 );
                 break;
             }
             case 0x2:{
-                printf("SLT instruction");
+                printf("SLT instruction\n");
                 writeRegister(instruction.rd,
                     static_cast<int32_t>(readRegister(instruction.rs1)) < 
                     static_cast<int32_t>(readRegister(instruction.rs2)) ? 1 : 0
@@ -139,7 +142,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 break;
             }
             case 0x3:{
-                printf("SLTU instruction");
+                printf("SLTU instruction\n");
                 writeRegister(instruction.rd,
                     readRegister(instruction.rs1) < readRegister(instruction.rs2) ? 1 : 0
                 );
@@ -167,6 +170,8 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 break;
             }
             case 0x5:{
+                printf("%s instruction\n",
+                    instruction.funct7 == 0x20 ? "SRA" : "SRL");
                 if(instruction.funct3 == 0x0){
                     printf("SRL instruction");
                     writeRegister(instruction.rd, 
@@ -194,43 +199,44 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 break;
                 }
             case 0x1:{
-                writeRegister(instruction.rd, 
-                    readRegister(instruction.rs1) << (readRegister(instruction.imm) & 0xF)
-                );
-                break;
-            }
-            case 0x2:{
-                printf("SLTI instruction");
+                    printf("SLLI instruction\n");
+                    writeRegister(instruction.rd, 
+                        readRegister(instruction.rs1) << (readRegister(instruction.imm) & 0xF)
+                    );
+                    break;
+                }
+                case 0x2:{
+                    printf("SLTI instruction\n");
                 writeRegister(instruction.rd, 
                     readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
                 );
                 break;
             }
             case 0x3:{
-                printf("SLTIU instruction");
+                printf("SLTIU instruction\n");
                 writeRegister(instruction.rd, 
                     readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
                 );
                 break;
             }
             case 0x4:{
-                printf("XORI instruction");
+                printf("XORI instruction\n");
                 writeRegister(instruction.rd, readRegister(instruction.rs1) ^ readRegister(instruction.imm));
                 break;
             }
             case 0x5:{
-                printf("SRAI instruction");
+                printf("SRAI instruction\n");
                 writeRegister(instruction.rd, 
                     readRegister(instruction.rs1) >> (readRegister(instruction.imm) & 0xF)
                 );
             }
             case 0x6:{
-                printf("ORI instruction");
+                printf("ORI instruction\n");
                 writeRegister(instruction.rd, readRegister(instruction.rs1) | readRegister(instruction.imm));
                 break;
             }
             case 0x7:{
-                printf("ANDI instruction");
+                printf("ANDI instruction\n");
                 writeRegister(instruction.rd, readRegister(instruction.rs1) & readRegister(instruction.imm));
                 break;     
             } 
@@ -245,6 +251,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         return current_pc + static_cast<uint32_t>(instruction.imm);
     }
     case Opcode::JALR:{
+        printf("JALR instruction\n");
         if(instruction.rd != 0){
             writeRegister(instruction.rd, sequential_pc); // In RiscV, JALR allows rd equal to 0 but it is skipped.
         }
@@ -257,16 +264,16 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         switch(instruction.funct3)
         {
             case 0x0:
-                printf("STORE Byte instruction\n");
+                printf("SB instruction\n");
                 memory.write8(address, word);
                 break;
             case 0x1:
-                printf("STORE Half instruction\n");
+                printf("SH instruction\n");
                 memory.write8(address, word);
                 memory.write8(address + 1, word);
                 break;                  
             case 0x2:
-                printf("STORE WORD instruction\n");
+                printf("SW instruction\n");
                 memory.write32(address, word);
                 break;
             break;
@@ -280,26 +287,32 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
 
         switch (instruction.funct3) {
         case 0x0: // BEQ
+            printf("BEQ instruction\n");
             branch_condition_met = readRegister(instruction.rs1) ==
                                    readRegister(instruction.rs2);
             break;
         case 0x1: // BNE
+            printf("BNE instruction\n");
             branch_condition_met = readRegister(instruction.rs1) !=
                                    readRegister(instruction.rs2);
             break;
         case 0x4: // BLT
+            printf("BLT instruction\n");
             branch_condition_met = readRegister(instruction.rs1) <
                                    readRegister(instruction.rs2);
             break;
         case 0x5: // BGE
+            printf("BGE instruction\n");
             branch_condition_met = readRegister(instruction.rs1) >=
                                    readRegister(instruction.rs2);
             break;
         case 0x6: // BLTU (unsigned)
+            printf("BLTU instruction\n");
             branch_condition_met = readRegister(instruction.rs1) <
                                   readRegister(instruction.rs2);
             break;
         case 0x7: // BGEU (unsigned)
+            printf("BGEU instruction\n");
             branch_condition_met = readRegister(instruction.rs1) >=
                                   readRegister(instruction.rs2);
             break;
@@ -317,7 +330,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         {
         case 0x0:
         {
-            printf("LOAD Byte instruction\n");
+            printf("LB instruction\n");
             uint32_t byte =
                 memory.read8(readRegister(instruction.rs1) + instruction.imm);
             // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
@@ -329,7 +342,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         }
         case 0x1:
         {
-            printf("LOAD half instruction\n");
+            printf("LH instruction\n");
             uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
                             | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));
             // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
@@ -340,12 +353,12 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             break;            
         }
         case 0x2:
-            printf("LOAD Word instruction\n");
+            printf("LW instruction\n");
             writeRegister(instruction.rd, memory.read32(readRegister(instruction.rs1) + instruction.imm));
             break;
         case 0x4:
         {
-            printf("LOAD U Byte instruction\n");
+            printf("LBU instruction\n");
             const uint32_t byte =
                 memory.read8(readRegister(instruction.rs1) + instruction.imm);
             writeRegister(instruction.rd, byte);
@@ -353,7 +366,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         }
         case 0x5:
         {
-            printf("LOAD half instruction\n");
+            printf("LHU instruction\n");
             const uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
                             | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));                          
             writeRegister(instruction.rd, half);
@@ -363,7 +376,19 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             break;
         }
     }
+        case Opcode::LUI:{
+        printf("LUI instruction\n");
+        writeRegister(instruction.rd, readRegister(instruction.imm << 12));
+        break;
+    }
+    case Opcode::AUIPC:{
+        printf("AUIPC instruction\n");
+        writeRegister(instruction.rd, current_pc + (readRegister(instruction.imm) << 12));
+        break;
+    }
     default:
+        printf("Not recognized instruction");
+        sequential_pc = current_pc;
         break;
     }
     return sequential_pc;
