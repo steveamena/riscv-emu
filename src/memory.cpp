@@ -54,10 +54,10 @@ void Memory::print32Hex(uint32_t address) const {
         throw std::out_of_range("Address out of range");
     }
 
-    printf("% % % %\n", 
-           static_cast<unsigned char>(data_[address]),
-           static_cast<unsigned char>(data_[address + 1]),
+    printf("%02X %02X %02X %02X\n", 
+           static_cast<unsigned char>(data_[address + 3]),
            static_cast<unsigned char>(data_[address + 2]),
-           static_cast<unsigned char>(data_[address + 3]));
+           static_cast<unsigned char>(data_[address + 1]),
+           static_cast<unsigned char>(data_[address]));
 }
 
