@@ -101,6 +101,9 @@ void CPU::writeRegister(uint32_t index, uint32_t value){
     if(index == 0 ){
         return;
     }
+    if(index >= register_size_){
+        return;
+    }
     registers[index] = value;
 }
 
@@ -201,43 +204,44 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             case 0x1:{
                     printf("SLLI instruction\n");
                     writeRegister(instruction.rd, 
-                        readRegister(instruction.rs1) << (readRegister(instruction.imm) & 0xF)
+                        readRegister(instruction.rs1) << (instruction.imm & 0xF)
                     );
                     break;
                 }
                 case 0x2:{
                     printf("SLTI instruction\n");
                 writeRegister(instruction.rd, 
-                    readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
+                    static_cast<int32_t>(readRegister(instruction.rs1)) < static_cast<int32_t>(instruction.imm) ? 1: 0
                 );
                 break;
             }
             case 0x3:{
                 printf("SLTIU instruction\n");
                 writeRegister(instruction.rd, 
-                    readRegister(instruction.rs1) < readRegister(instruction.imm) ? 1: 0
+                    readRegister(instruction.rs1) < instruction.imm ? 1: 0
                 );
                 break;
             }
             case 0x4:{
                 printf("XORI instruction\n");
-                writeRegister(instruction.rd, readRegister(instruction.rs1) ^ readRegister(instruction.imm));
+                writeRegister(instruction.rd, readRegister(instruction.rs1) ^ instruction.imm);
                 break;
             }
             case 0x5:{
                 printf("SRAI instruction\n");
                 writeRegister(instruction.rd, 
-                    readRegister(instruction.rs1) >> (readRegister(instruction.imm) & 0xF)
+                    readRegister(instruction.rs1) >> (instruction.imm & 0xF)
                 );
+                break;
             }
             case 0x6:{
                 printf("ORI instruction\n");
-                writeRegister(instruction.rd, readRegister(instruction.rs1) | readRegister(instruction.imm));
+                writeRegister(instruction.rd, readRegister(instruction.rs1) | instruction.imm);
                 break;
             }
             case 0x7:{
                 printf("ANDI instruction\n");
-                writeRegister(instruction.rd, readRegister(instruction.rs1) & readRegister(instruction.imm));
+                writeRegister(instruction.rd, readRegister(instruction.rs1) & instruction.imm);
                 break;     
             } 
         }
@@ -383,7 +387,7 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
     }
     case Opcode::AUIPC:{
         printf("AUIPC instruction\n");
-        writeRegister(instruction.rd, current_pc + (readRegister(instruction.imm) << 12));
+        writeRegister(instruction.rd, current_pc + (instruction.imm << 12));
         break;
     }
     default:

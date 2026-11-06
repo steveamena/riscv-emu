@@ -1,5 +1,5 @@
 #include <cstdint>
-#include <iostream>
+#include <array>
 
 #include "memory.h"
 
@@ -49,8 +49,8 @@ class CPU {
         uint32_t fetch();
         Instruction decode(uint32_t instruction);
         uint32_t execute(const Instruction& instruction, const uint32_t current_pc);
-
-        uint32_t registers[32];
+        static constexpr size_t register_size_ = 32;
+        std::array<uint32_t, register_size_> registers;
         uint32_t program_counter_;
 
         Memory& memory;

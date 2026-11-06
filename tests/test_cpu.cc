@@ -24,7 +24,7 @@ TEST(CpuTest, ExecutesImmediateInstructions) {
 
     const TestCase test_cases[] = {
         {0xFFF08113, 10, 9},          // ADDI x2, x1, -1
-        {0x0010A113, 0xFFFFFFFF, 1}, // SLTI x2, x1, 1
+        {0x0030A113, 0xFFFFFFFF, 1}, // SLTI x2, x1, 1
         {0x0070B113, 5, 1},           // SLTIU x2, x1, 7
         {0x0050C113, 0x0F, 0x0A},     // XORI x2, x1, 5
         {0x0030E113, 0x10, 0x13},     // ORI x2, x1, 3
