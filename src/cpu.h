@@ -41,9 +41,10 @@ class CPU {
 
         // auxiliary methods
         void setPC(uint32_t new_pc) { program_counter_ = new_pc; }
+        uint32_t getPC() const { return program_counter_; }
         void printInstruction(Instruction instruction);
         void print32int(uint32_t value);
-        int32_t sign_extend(int32_t value, int32_t size);
+        int32_t sign_extend(uint32_t value, uint32_t size);
     private:
         // fetch -> decode -> execute methods
         uint32_t fetch();
@@ -52,6 +53,5 @@ class CPU {
         static constexpr size_t register_size_ = 32;
         std::array<uint32_t, register_size_> registers;
         uint32_t program_counter_;
-
         Memory& memory;
 };

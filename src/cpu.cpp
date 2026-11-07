@@ -1,12 +1,30 @@
 #include "cpu.h"
 #include "memory.h"
 
+// Class helpers
 void CPU::reset() {
     program_counter_ = 0;
     for(int i = 0; i < 32; ++i) {
         registers[i] = 0;
     }
 }
+
+int32_t CPU::sign_extend(uint32_t value, uint32_t size) {
+    if (size == 0 || size >= 32) {
+        throw std::invalid_argument("Invalid sign-extension width");
+    }
+
+    const uint32_t mask = (uint32_t{1} << size) - 1;
+    const uint32_t sign_bit = uint32_t{1} << (size - 1);
+
+    value &= mask;
+    if (value & sign_bit) {
+        value |= ~mask;
+    }
+
+    return static_cast<int32_t>(value);
+}
+
 
 void CPU::step(){
     const uint32_t current_pc = program_counter_;
@@ -36,7 +54,7 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
         case Opcode::JALR:
         case Opcode::Load:
         case Opcode::ALU_Imm:
-            inst.imm = sign_extend((instruction >> 20) & 0xFFF, 12);
+            inst.imm = sign_extend(instruction >> 20, 12);
             break;
         case Opcode::JAL:{
             // 1. Extract the segments from each register section
@@ -76,13 +94,6 @@ CPU::Instruction CPU::decode(uint32_t instruction) {
     return inst;
 }
 
-int32_t CPU::sign_extend(int32_t value, int32_t size){
-    if ( value & (1 << (size - 1))){
-        return value |= ((0xFFFFFFFF << size));
-    }
-    return value;
-}
-
 void CPU::printInstruction(Instruction instruction) {
     printf("Opcode: 0x%02X, rd: %u, funct3: 0x%X, rs1: %u, rs2: %u, funct7: 0x%02X\n",
            static_cast<unsigned>(instruction.opcode),
@@ -94,6 +105,12 @@ void CPU::printInstruction(Instruction instruction) {
 }
 
 uint32_t CPU::readRegister(uint32_t index) const {
+    if(index == 0){
+        throw std::runtime_error("Register out of index error");
+    }
+    if(index >= register_size_){
+        throw std::runtime_error("Register out of index error");
+    }
     return registers[index];
 }
 
@@ -173,18 +190,21 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
                 break;
             }
             case 0x5:{
-                printf("%s instruction\n",
-                    instruction.funct7 == 0x20 ? "SRA" : "SRL");
-                if(instruction.funct3 == 0x0){
-                    printf("SRL instruction");
-                    writeRegister(instruction.rd, 
-                        readRegister(instruction.rs1) >> readRegister(instruction.rs2));
-                }
-                if(instruction.funct3 == 0x20){
-                    printf("SRA instruction");
-                    writeRegister(instruction.rd,
-                        static_cast<int32_t>(instruction.rs1) >> static_cast<int32_t>(instruction.rs2)
-                    );
+                switch(instruction.funct7){
+                    case 0x0: {
+                        printf("SRL instruction\n");
+                        writeRegister(instruction.rd, 
+                                    readRegister(instruction.rs1) >> readRegister(instruction.rs2));
+                        break;
+                    }
+                    case 0x20: {
+                        printf("SRA instruction\n");
+                        writeRegister(instruction.rd,
+                        static_cast<int32_t>(readRegister(instruction.rs1)) >> readRegister(instruction.rs2));
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Instruction not defined");
                 }
             break;
             }
@@ -269,18 +289,17 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         {
             case 0x0:
                 printf("SB instruction\n");
-                memory.write8(address, word);
+                memory.write8(address, word & 0xFF);
                 break;
             case 0x1:
                 printf("SH instruction\n");
-                memory.write8(address, word);
-                memory.write8(address + 1, word);
+                memory.write8(address, word & 0xFF);
+                memory.write8(address + 1, (word & 0xFF00) >> 8);
                 break;                  
             case 0x2:
                 printf("SW instruction\n");
                 memory.write32(address, word);
                 break;
-            break;
             default:
             break;
         }
@@ -302,13 +321,13 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
             break;
         case 0x4: // BLT
             printf("BLT instruction\n");
-            branch_condition_met = readRegister(instruction.rs1) <
-                                   readRegister(instruction.rs2);
+            branch_condition_met = static_cast<int32_t>(readRegister(instruction.rs1)) <
+                                   static_cast<int32_t>(readRegister(instruction.rs2));
             break;
         case 0x5: // BGE
             printf("BGE instruction\n");
-            branch_condition_met = readRegister(instruction.rs1) >=
-                                   readRegister(instruction.rs2);
+            branch_condition_met = static_cast<int32_t>(readRegister(instruction.rs1)) >=
+                                   static_cast<int32_t>(readRegister(instruction.rs2));
             break;
         case 0x6: // BLTU (unsigned)
             printf("BLTU instruction\n");
@@ -335,25 +354,17 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         case 0x0:
         {
             printf("LB instruction\n");
-            uint32_t byte =
+            const uint32_t byte =
                 memory.read8(readRegister(instruction.rs1) + instruction.imm);
-            // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
-            if ((byte & 0x80) != 0) {
-                byte |= 0xFFFFFF00;
-            }
-            writeRegister(instruction.rd, byte);
+            writeRegister(instruction.rd, sign_extend(byte, 8));
             break;
         }
         case 0x1:
         {
             printf("LH instruction\n");
-            uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
-                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));
-            // LB sign-extends: for 0x80, set the upper 24 bits to get 0xFFFFFF80.
-            if ((half & 0x8000) != 0) {
-                half |= 0xFFFF0000;
-            }                            
-            writeRegister(instruction.rd, half);
+            const uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm)
+                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)) << 8);
+            writeRegister(instruction.rd, sign_extend(half, 16));
             break;            
         }
         case 0x2:
@@ -371,29 +382,29 @@ uint32_t CPU::execute(const Instruction& instruction, const uint32_t current_pc)
         case 0x5:
         {
             printf("LHU instruction\n");
-            const uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm) << 8
-                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)));                          
+            const uint32_t half = (memory.read8(readRegister(instruction.rs1) + instruction.imm)
+                            | (memory.read8(readRegister(instruction.rs1) + instruction.imm + 1)) << 8);                          
             writeRegister(instruction.rd, half);
             break;
         }
         default:
             break;
         }
+        break;
     }
     case Opcode::LUI:{
     printf("LUI instruction\n");
-    writeRegister(instruction.rd, readRegister(instruction.imm << 12));
+    writeRegister(instruction.rd, instruction.imm << 11);
     break;
     }
     case Opcode::AUIPC:{
         printf("AUIPC instruction\n");
-        writeRegister(instruction.rd, current_pc + (instruction.imm << 12));
+        writeRegister(instruction.rd, current_pc + (instruction.imm << 11));
         break;
     }
     default:
         printf("Not recognized instruction");
         return current_pc;
-        break;
     }
     return sequential_pc;
 }
