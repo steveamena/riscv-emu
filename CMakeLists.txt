@@ -14,10 +14,6 @@ add_executable(riscv-emu
                 src/main.cpp
                 src/memory.cpp)
 
-target_include_directories(riscv-emu PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-)
-
 # Test configuration
 include(FetchContent)
 FetchContent_Declare(
